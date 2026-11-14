@@ -12,6 +12,7 @@ export function evaluateMissionBuild({
   foodQuantities = {},
   launchAngleDeg = 80,
   trajectoryId = 'direct',
+  roomPlayers = [],
 }) {
   const mission = MISSIONS.find((m) => m.id === missionId) || MISSIONS[0];
 
@@ -79,7 +80,7 @@ export function evaluateMissionBuild({
   const foodWeightRocketSurcharge = foodWeightKg * 45;
   const totalFoodCost = foodDirectCost + foodWeightRocketSurcharge;
 
-  // 3. Total Budget & Remaining
+  // 3. Shared Single Budget & Remaining
   const totalSpent = rocketCost + totalFoodCost;
   const remainingBudget = mission.budget - totalSpent;
   const budgetLeftAfterRocket = mission.budget - rocketCost;
@@ -119,7 +120,89 @@ export function evaluateMissionBuild({
     TRAJECTORY_PATHS.find((t) => t.id === mission.optimalTrajectoryId) ||
     TRAJECTORY_PATHS[0];
 
-  // 7. Check all failure / crash reasons (in chronological order of flight!)
+  const hasRequiredExperiment = selectedExperiments.some(
+    (e) => e.id === mission.requiredExperimentId
+  );
+  const requiredExpObj = SCIENCE_EXPERIMENTS.find(
+    (e) => e.id === mission.requiredExperimentId
+  );
+
+  // 7. Mission Prep Progress Bar Checklists (4 Role Stations = 25% each -> 100% Full)
+  const propulsionOk =
+    tank.tankLevel >= mission.requiredTankLevel &&
+    coating.coatingLevel >= mission.requiredCoatingLevel &&
+    thrustKn >= mission.minThrustKn &&
+    totalWeightTons <= engine.maxWeightTons;
+
+  const payloadAeroOk =
+    nose.heatLevel >= mission.requiredHeatLevel && hasRequiredExperiment;
+
+  const foodBudgetOk =
+    totalFoodDays >= mission.requiredFoodDays && remainingBudget >= 0;
+
+  const allTeamMembersReady =
+    roomPlayers.length === 0 || roomPlayers.every((p) => p.isReady);
+
+  const trajectoryReadyOk = isTrajectoryAcceptable && allTeamMembersReady;
+
+  const prepSteps = [
+    {
+      id: 'propulsion',
+      roleId: 'propulsion',
+      label: 'Propulsion & Tank',
+      badge: '🚀',
+      done: propulsionOk,
+      hint: !propulsionOk
+        ? tank.tankLevel < mission.requiredTankLevel
+          ? 'Need larger Fuel Tank'
+          : coating.coatingLevel < mission.requiredCoatingLevel
+          ? `Need ${mission.id === 'neptune' ? 'Thick Cryo-Armor' : 'Mid Cryo-Foam'} coating`
+          : 'Need stronger Engine thrust for weight'
+        : 'Tank, Coating & Thrust Ready',
+    },
+    {
+      id: 'payload',
+      roleId: 'payload',
+      label: 'Aero & Science',
+      badge: '🔬',
+      done: payloadAeroOk,
+      hint: !payloadAeroOk
+        ? !hasRequiredExperiment
+          ? `Install ${requiredExpObj?.name}`
+          : 'Upgrade Nose Cone heat shield'
+        : 'Nose Cone & Experiment Ready',
+    },
+    {
+      id: 'lifesupport',
+      roleId: 'lifesupport',
+      label: 'Food & Budget',
+      badge: '🍱',
+      done: foodBudgetOk,
+      hint: !foodBudgetOk
+        ? remainingBudget < 0
+          ? 'Over shared Mission Budget!'
+          : `Pack ${mission.requiredFoodDays} days of Astronaut Food`
+        : `${totalFoodDays}d Food & Budget OK`,
+    },
+    {
+      id: 'commander',
+      roleId: 'commander',
+      label: roomPlayers.length > 0 ? 'Trajectory & Team Ready' : 'Trajectory Setup',
+      badge: '🎖️',
+      done: trajectoryReadyOk,
+      hint: !isTrajectoryAcceptable
+        ? 'Trajectory accuracy must be ≥40%'
+        : !allTeamMembersReady
+        ? 'Waiting for all Room teammates to click Ready'
+        : 'Launch Corridor Locked',
+    },
+  ];
+
+  const completedStepsCount = prepSteps.filter((s) => s.done).length;
+  const prepProgressPct = completedStepsCount * 25;
+  const isPrepFull = prepProgressPct === 100;
+
+  // 8. Check all failure / crash reasons (in chronological order of flight!)
   const failures = [];
 
   if (totalSpent > mission.budget) {
@@ -128,8 +211,8 @@ export function evaluateMissionBuild({
       stage: 'liftoff',
       progressStop: 0.08,
       redirectTo: totalFoodCost > 0 && rocketCost <= mission.budget ? 'food' : 'rocket',
-      title: 'Mission Grounded: Budget Overrun!',
-      explanation: `Your total mission cost ($${totalSpent.toLocaleString()}) exceeded the $${mission.budget.toLocaleString()} budget cap for ${mission.name} by $${Math.abs(remainingBudget).toLocaleString()}!`,
+      title: 'Mission Grounded: Shared Budget Overrun!',
+      explanation: `Your team's total mission cost ($${totalSpent.toLocaleString()}) exceeded the $${mission.budget.toLocaleString()} shared budget cap for ${mission.name} by $${Math.abs(remainingBudget).toLocaleString()}!`,
       fixHint:
         totalFoodCost > 0 && rocketCost <= mission.budget
           ? 'Reduce expensive food crates or heavy rations on the Astronaut Food page.'
@@ -221,13 +304,6 @@ export function evaluateMissionBuild({
     });
   }
 
-  const hasRequiredExperiment = selectedExperiments.some(
-    (e) => e.id === mission.requiredExperimentId
-  );
-  const requiredExpObj = SCIENCE_EXPERIMENTS.find(
-    (e) => e.id === mission.requiredExperimentId
-  );
-
   if (!hasRequiredExperiment) {
     failures.push({
       code: 'MISSING_REQUIRED_EXPERIMENT',
@@ -290,6 +366,11 @@ export function evaluateMissionBuild({
     optimalTrajectoryObj,
     trajectoryAccuracyPct,
     isTrajectoryAcceptable,
+    // Mission Prep Progress Bar (0% - 100%)
+    prepSteps,
+    prepProgressPct,
+    isPrepFull,
+    allTeamMembersReady,
     // Outcome
     failures,
     primaryFailure,

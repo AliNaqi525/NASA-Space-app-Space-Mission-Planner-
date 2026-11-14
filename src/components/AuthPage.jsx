@@ -1,14 +1,15 @@
 import React, { useState } from 'react';
 import SpaceportScene from './SpaceportScene.jsx';
 import { TEAM_ROLES } from '../data/missionCatalog.js';
-import { Rocket, UserPlus, LogIn, Sparkles, ShieldCheck } from 'lucide-react';
+import { Rocket, UserPlus, LogIn, Sparkles, ShieldCheck, QrCode } from 'lucide-react';
 
-export default function AuthPage({ onAuthSuccess, apiBase }) {
+export default function AuthPage({ onAuthSuccess, apiBase, pendingRoomCode }) {
   const [mode, setMode] = useState('login'); // 'login' | 'signup'
   const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [preferredRole, setPreferredRole] = useState(TEAM_ROLES[0].id);
+  const [preferredRole, setPreferredRole] = useState(TEAM_ROLES[0].title);
+  const [quickJoinName, setQuickJoinName] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -34,8 +35,8 @@ export default function AuthPage({ onAuthSuccess, apiBase }) {
       } else {
         onAuthSuccess(data.user);
       }
-    } catch (err) {
-      setError('Cannot reach Spaceport Database Server on port 3001.');
+    } catch {
+      setError('Cannot reach Spaceport Database Server.');
     } finally {
       setLoading(false);
     }
@@ -55,10 +56,33 @@ export default function AuthPage({ onAuthSuccess, apiBase }) {
       });
       const data = await res.json();
       if (data.success) {
-        onAuthSuccess(data.user);
+        onAuthSuccess(data.user, { isQuickDemo: true });
       }
-    } catch (err) {
+    } catch {
       setError('Server connection error.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleQuickRoomJoin = async (e) => {
+    e.preventDefault();
+    setError('');
+    setLoading(true);
+    try {
+      const res = await fetch(`${apiBase}/api/auth/quick-join`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          nickname: quickJoinName || `Astronaut_${Math.floor(10 + Math.random() * 89)}`,
+        }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        onAuthSuccess(data.user, { isQuickDemo: false });
+      }
+    } catch {
+      setError('Could not quick-join room.');
     } finally {
       setLoading(false);
     }
@@ -67,11 +91,11 @@ export default function AuthPage({ onAuthSuccess, apiBase }) {
   return (
     <SpaceportScene showCharacter={true} showTowers={true}>
       {/* Top Cartoon Header Bar */}
-      <div className="w-full max-w-6xl mx-auto px-6 pt-5 flex items-center justify-between">
+      <div className="w-full max-w-6xl mx-auto px-6 pt-5 flex flex-wrap items-center justify-between gap-2">
         <div className="bg-white/95 border-4 border-[#93c5fd] rounded-full px-6 py-2 shadow-lg flex items-center gap-2.5">
           <Rocket className="w-6 h-6 text-[#1d4ed8]" />
           <span className="font-extrabold text-lg text-[#1e3a8a] tracking-tight">
-            AstroBuilder: Space Mission Designer
+            AstroBuilder: Team Space Mission Designer
           </span>
         </div>
 
@@ -79,15 +103,43 @@ export default function AuthPage({ onAuthSuccess, apiBase }) {
           onClick={handleQuickDemoLogin}
           className="bg-[#f59e0b] hover:bg-[#eab308] text-[#1e3a8a] font-extrabold text-sm px-5 py-2.5 rounded-full border-4 border-white shadow-lg flex items-center gap-2 transition transform hover:scale-105"
         >
-          <Sparkles className="w-4 h-4" /> Quick Demo Login (CaptainNova)
+          <Sparkles className="w-4 h-4" /> Quick Demo & Guided Walkthrough
         </button>
       </div>
 
       {/* Main Left/Center Cartoon Auth Card */}
       <div className="flex-1 flex items-center justify-center lg:justify-start max-w-6xl w-full mx-auto px-6 py-6">
-        <div className="w-full max-w-md bg-white/95 backdrop-blur-md border-4 border-[#93c5fd] rounded-3xl p-6 shadow-2xl text-[#1e3a8a]">
+        <div className="w-full max-w-md bg-white/95 backdrop-blur-md border-4 border-[#93c5fd] rounded-3xl p-6 shadow-2xl text-[#1e3a8a] space-y-4">
+          {/* QR Code Instant Room Invite Banner if ?room=XXXX is in URL */}
+          {pendingRoomCode && (
+            <form
+              onSubmit={handleQuickRoomJoin}
+              className="p-4 rounded-2xl bg-[#fef9c3] border-2 border-[#f59e0b] space-y-2.5"
+            >
+              <div className="flex items-center gap-2 text-xs font-black text-[#1e3a8a]">
+                <QrCode className="w-5 h-5 text-[#d97706]" />
+                <span>QR INVITE: JOINING TEAM ROOM {pendingRoomCode}!</span>
+              </div>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={quickJoinName}
+                  onChange={(e) => setQuickJoinName(e.target.value)}
+                  placeholder="Enter your nickname..."
+                  className="flex-1 px-3 py-2 rounded-xl bg-white border-2 border-[#f59e0b] text-xs font-bold text-[#1e3a8a] focus:outline-none"
+                />
+                <button
+                  type="submit"
+                  className="px-4 py-2 rounded-xl bg-[#2563eb] hover:bg-[#1d4ed8] text-white font-black text-xs shrink-0 shadow"
+                >
+                  Instant Join →
+                </button>
+              </div>
+            </form>
+          )}
+
           {/* Mode Switcher */}
-          <div className="grid grid-cols-2 gap-2 bg-[#eff6ff] p-1.5 rounded-2xl border-2 border-[#bfdbfe] mb-5">
+          <div className="grid grid-cols-2 gap-2 bg-[#eff6ff] p-1.5 rounded-2xl border-2 border-[#bfdbfe]">
             <button
               type="button"
               onClick={() => {
@@ -118,24 +170,24 @@ export default function AuthPage({ onAuthSuccess, apiBase }) {
             </button>
           </div>
 
-          <h1 className="text-2xl font-black text-[#1e3a8a]">
-            {mode === 'login'
-              ? 'Welcome Back to the Spaceport!'
-              : 'Enlist in the Space Program!'}
-          </h1>
-          <p className="text-xs font-semibold text-slate-500 mt-1 mb-4">
-            {mode === 'login'
-              ? 'Log in to access your astronaut profile, saved logins, and mission scores.'
-              : 'Create your astronaut account. Choose your specialization role (saved for Team Mode!).'}
-          </p>
+          <div>
+            <h1 className="text-2xl font-black text-[#1e3a8a]">
+              {mode === 'login'
+                ? 'Welcome Back to the Spaceport!'
+                : 'Enlist in the Space Program!'}
+            </h1>
+            <p className="text-xs font-semibold text-slate-500 mt-1">
+              Play Solo or join a 1–4 Player Team Room with QR Code & live role division!
+            </p>
+          </div>
 
           {error && (
-            <div className="mb-4 p-3 rounded-2xl bg-rose-100 border-2 border-rose-400 text-rose-800 text-xs font-bold">
+            <div className="p-3 rounded-2xl bg-rose-100 border-2 border-rose-400 text-rose-800 text-xs font-bold">
               ⚠️ {error}
             </div>
           )}
 
-          <form onSubmit={handleSubmit} className="space-y-3.5">
+          <form onSubmit={handleSubmit} className="space-y-3">
             <div>
               <label className="block text-xs font-extrabold uppercase tracking-wider text-[#1e40af] mb-1">
                 Astronaut Callsign (Username)
@@ -183,20 +235,17 @@ export default function AuthPage({ onAuthSuccess, apiBase }) {
               <div>
                 <div className="flex items-center justify-between mb-1">
                   <label className="text-xs font-extrabold uppercase tracking-wider text-[#1e40af]">
-                    Profile Role (For Future Team Mode)
+                    Preferred Role (Auto-Divided in Team Rooms)
                   </label>
-                  <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 border border-amber-300">
-                    Solo Mode Now
-                  </span>
                 </div>
                 <div className="grid grid-cols-2 gap-2">
                   {TEAM_ROLES.map((role) => {
-                    const selected = preferredRole === role.id;
+                    const selected = preferredRole === role.title;
                     return (
                       <button
                         type="button"
                         key={role.id}
-                        onClick={() => setPreferredRole(role.id)}
+                        onClick={() => setPreferredRole(role.title)}
                         className={`p-2 rounded-xl border-2 text-left transition ${
                           selected
                             ? 'bg-[#fef9c3] border-[#f59e0b] shadow-sm'
@@ -204,7 +253,7 @@ export default function AuthPage({ onAuthSuccess, apiBase }) {
                         }`}
                       >
                         <div className="text-xs font-extrabold text-[#1e3a8a]">
-                          {role.badge} {role.id}
+                          {role.badge} {role.shortTitle}
                         </div>
                       </button>
                     );
@@ -226,7 +275,7 @@ export default function AuthPage({ onAuthSuccess, apiBase }) {
             </button>
           </form>
 
-          <div className="mt-4 pt-3 border-t-2 border-slate-100 flex items-center justify-between text-xs text-slate-500 font-semibold">
+          <div className="pt-2 border-t-2 border-slate-100 flex items-center justify-between text-xs text-slate-500 font-semibold">
             <span className="flex items-center gap-1 text-emerald-700 font-bold">
               <ShieldCheck className="w-4 h-4" /> Logins Saved in Database
             </span>

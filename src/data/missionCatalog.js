@@ -1,31 +1,78 @@
-// Bright Cartoon Space Mission Design App - Complete Catalog
+// Bright Cartoon Space Mission Design App - Complete Catalog & 4-Role Team Division
 
 export const TEAM_ROLES = [
   {
-    id: 'Mission Commander',
+    id: 'commander',
     badge: '🎖️',
     title: 'Mission Commander',
-    description: 'Leads overall budget strategy and launch trajectory authorization (Active in Team Mode).',
+    shortTitle: 'Commander',
+    color: '#2563eb',
+    bgLight: '#dbeafe',
+    responsibilities: 'Selects Mission Target, Launch Angle, Trajectory Path & Authorizes Launch',
+    owns: ['mission', 'trajectory', 'launch'],
   },
   {
-    id: 'Propulsion Engineer',
+    id: 'propulsion',
     badge: '🚀',
     title: 'Propulsion & Tank Engineer',
-    description: 'Selects coated fuel tanks, thermal insulation, and rocket engines (Active in Team Mode).',
+    shortTitle: 'Propulsion',
+    color: '#d97706',
+    bgLight: '#fef3c7',
+    responsibilities: 'Selects Coated Fuel Tank, Tank Thermal Insulation & Rocket Engine',
+    owns: ['tank', 'coating', 'engine'],
   },
   {
-    id: 'Payload Specialist',
+    id: 'payload',
     badge: '🔬',
-    title: 'Science & Payload Specialist',
-    description: 'Integrates planetary science experiments and orbital instruments (Active in Team Mode).',
+    title: 'Aero & Science Specialist',
+    shortTitle: 'Payload & Aero',
+    color: '#059669',
+    bgLight: '#d1fae5',
+    responsibilities: 'Selects Nose Cone, Stabilizer Fins & Planetary Science Experiments',
+    owns: ['nose', 'fins', 'experiments'],
   },
   {
-    id: 'Life Support Officer',
+    id: 'lifesupport',
     badge: '🍱',
-    title: 'Life Support & Provisioning Officer',
-    description: 'Manages astronaut food rations, crew morale, and launch mass balance (Active in Team Mode).',
+    title: 'Life Support & Food Officer',
+    shortTitle: 'Life Support',
+    color: '#7c3aed',
+    bgLight: '#ede9fe',
+    responsibilities: 'Purchases Astronaut Food Rations & Manages Crew Mass Budget',
+    owns: ['food'],
   },
 ];
+
+// Dynamically divides the 4 roles among 1, 2, 3, or 4 players in a room
+export function divideRolesAmongPlayers(players = []) {
+  const allRoleIds = ['commander', 'propulsion', 'payload', 'lifesupport'];
+  const count = players.length;
+  if (count === 0) return [];
+
+  return players.map((player, idx) => {
+    let assignedRoles = [];
+    if (count === 1) {
+      // 1 person gets all 4 roles
+      assignedRoles = [...allRoleIds];
+    } else if (count === 2) {
+      // 2 people get 2 roles each
+      assignedRoles =
+        idx === 0 ? ['commander', 'propulsion'] : ['payload', 'lifesupport'];
+    } else if (count === 3) {
+      // 3 people divide the 4 roles (2, 1, 1)
+      if (idx === 0) assignedRoles = ['commander', 'payload'];
+      else if (idx === 1) assignedRoles = ['propulsion'];
+      else assignedRoles = ['lifesupport'];
+    } else {
+      // 4 people get 1 dedicated role each
+      assignedRoles = [allRoleIds[idx % 4]];
+    }
+    return {
+      ...player,
+      assignedRoles,
+    };
+  });
+}
 
 export const MISSIONS = [
   {

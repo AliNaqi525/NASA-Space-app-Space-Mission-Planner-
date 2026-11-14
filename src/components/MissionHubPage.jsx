@@ -14,6 +14,8 @@ import {
   Shield,
   LogOut,
   CheckCircle2,
+  QrCode,
+  Users,
 } from 'lucide-react';
 
 export default function MissionHubPage({
@@ -24,23 +26,25 @@ export default function MissionHubPage({
   onUpdateRole,
   onLogout,
   leaderboard,
+  room,
+  onOpenRoomModal,
+  walkthroughStep = 0,
+  onWalkthroughStepComplete,
 }) {
   const [showProfileModal, setShowProfileModal] = useState(false);
-  const activeMission =
-    MISSIONS.find((m) => m.id === selectedMissionId) || MISSIONS[0];
 
   return (
     <SpaceportScene showCharacter={true} showTowers={true}>
       {/* Top Bar matching Reference Image 2 */}
-      <div className="w-full max-w-7xl mx-auto px-6 pt-5 flex flex-wrap items-center justify-between gap-3">
+      <div className="w-full max-w-7xl mx-auto px-6 pt-4 flex flex-wrap items-center justify-between gap-3">
         {/* Left Circular Navy Home / Profile Button */}
         <div className="flex items-center gap-3">
           <button
             onClick={() => setShowProfileModal(true)}
             title="Astronaut Profile"
-            className="w-14 h-14 rounded-full bg-[#1e3a8a] hover:bg-[#1d4ed8] border-4 border-[#93c5fd] shadow-lg flex items-center justify-center text-white transition transform hover:scale-105"
+            className="w-13 h-13 p-3.5 rounded-full bg-[#1e3a8a] hover:bg-[#1d4ed8] border-4 border-[#93c5fd] shadow-lg flex items-center justify-center text-white transition transform hover:scale-105"
           >
-            <Home className="w-7 h-7" />
+            <Home className="w-6 h-6" />
           </button>
 
           {/* Logged-in Astronaut Badge */}
@@ -56,7 +60,9 @@ export default function MissionHubPage({
                 {user.username}
               </div>
               <div className="text-[11px] font-bold text-slate-500">
-                Role: {user.preferredRole} (Solo Mode)
+                {room
+                  ? `In Room ${room.roomCode} (${room.players.length}/4 Players)`
+                  : `Solo Mode • Click Team Room to Invite`}
               </div>
             </div>
             <div className="pl-2 border-l-2 border-slate-200 flex items-center gap-1 text-[#d97706] font-black text-sm">
@@ -66,7 +72,7 @@ export default function MissionHubPage({
         </div>
 
         {/* Center Title Pill */}
-        <div className="bg-white/95 border-4 border-[#93c5fd] rounded-full px-8 py-2.5 shadow-lg">
+        <div className="bg-white/95 border-4 border-[#93c5fd] rounded-full px-8 py-2 shadow-lg">
           <span className="font-black text-lg text-[#1e3a8a] tracking-tight">
             🌟 Select Your Space Mission
           </span>
@@ -76,10 +82,10 @@ export default function MissionHubPage({
         <div className="flex items-center gap-2.5">
           <button
             onClick={() => setShowProfileModal(true)}
-            className="w-14 h-14 rounded-full bg-[#1e3a8a] hover:bg-[#1d4ed8] border-4 border-[#93c5fd] shadow-lg flex items-center justify-center text-white transition transform hover:scale-105"
+            className="w-13 h-13 p-3.5 rounded-full bg-[#1e3a8a] hover:bg-[#1d4ed8] border-4 border-[#93c5fd] shadow-lg flex items-center justify-center text-white transition transform hover:scale-105"
             title="Profile & Settings"
           >
-            <Settings className="w-7 h-7" />
+            <Settings className="w-6 h-6" />
           </button>
           <button
             onClick={onLogout}
@@ -91,19 +97,42 @@ export default function MissionHubPage({
       </div>
 
       {/* Main Content Area: Left Menu Pills (from Image 2) + 3 Mission Cards */}
-      <div className="flex-1 max-w-7xl w-full mx-auto px-6 py-6 grid grid-cols-1 lg:grid-cols-12 gap-6 items-center">
+      <div className="flex-1 max-w-7xl w-full mx-auto px-6 py-5 grid grid-cols-1 lg:grid-cols-12 gap-6 items-center">
         {/* Left Navigation Pills matching Reference Screenshot 2 */}
-        <div className="lg:col-span-4 space-y-4">
+        <div className="lg:col-span-4 space-y-3.5">
+          {/* Team Room & QR Code Pill */}
+          <button
+            onClick={onOpenRoomModal}
+            className="w-full bg-[#fef9c3] hover:bg-[#fef08a] border-4 border-[#f59e0b] rounded-full px-6 py-3.5 shadow-xl flex items-center justify-between group transition transform hover:-translate-y-0.5"
+          >
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 rounded-2xl bg-[#f59e0b] flex items-center justify-center text-white shadow">
+                <QrCode className="w-7 h-7" />
+              </div>
+              <div className="text-left">
+                <div className="text-lg font-black text-[#1e3a8a]">
+                  {room ? `Room ${room.roomCode} (${room.players.length}/4)` : 'Team Room & QR'}
+                </div>
+                <div className="text-xs font-bold text-[#92400e]">
+                  {room
+                    ? 'View QR Code & Divided Roles'
+                    : 'Create/Join 1–4 Player Room'}
+                </div>
+              </div>
+            </div>
+            <ChevronRight className="w-7 h-7 text-[#1e3a8a] group-hover:translate-x-1 transition" />
+          </button>
+
           <button
             onClick={() => onGoToPage('rocket')}
-            className="w-full bg-white/95 hover:bg-white border-4 border-[#60a5fa] rounded-full px-6 py-4 shadow-xl flex items-center justify-between group transition transform hover:-translate-y-0.5"
+            className="w-full bg-white/95 hover:bg-white border-4 border-[#60a5fa] rounded-full px-6 py-3.5 shadow-xl flex items-center justify-between group transition transform hover:-translate-y-0.5"
           >
             <div className="flex items-center gap-4">
               <div className="w-12 h-12 rounded-2xl bg-[#dbeafe] flex items-center justify-center text-[#1e3a8a]">
                 <Rocket className="w-7 h-7" />
               </div>
               <div className="text-left">
-                <div className="text-xl font-black text-[#1e3a8a]">
+                <div className="text-lg font-black text-[#1e3a8a]">
                   Rocket Select
                 </div>
                 <div className="text-xs font-bold text-slate-500">
@@ -116,14 +145,14 @@ export default function MissionHubPage({
 
           <button
             onClick={() => onGoToPage('food')}
-            className="w-full bg-white/95 hover:bg-white border-4 border-[#60a5fa] rounded-full px-6 py-4 shadow-xl flex items-center justify-between group transition transform hover:-translate-y-0.5"
+            className="w-full bg-white/95 hover:bg-white border-4 border-[#60a5fa] rounded-full px-6 py-3.5 shadow-xl flex items-center justify-between group transition transform hover:-translate-y-0.5"
           >
             <div className="flex items-center gap-4">
               <div className="w-12 h-12 rounded-2xl bg-[#fef3c7] flex items-center justify-center text-[#d97706]">
                 <Fuel className="w-7 h-7" />
               </div>
               <div className="text-left">
-                <div className="text-xl font-black text-[#1e3a8a]">
+                <div className="text-lg font-black text-[#1e3a8a]">
                   Fuel & Astro Food
                 </div>
                 <div className="text-xs font-bold text-slate-500">
@@ -136,14 +165,14 @@ export default function MissionHubPage({
 
           <button
             onClick={() => onGoToPage('solar')}
-            className="w-full bg-white/95 hover:bg-white border-4 border-[#60a5fa] rounded-full px-6 py-4 shadow-xl flex items-center justify-between group transition transform hover:-translate-y-0.5"
+            className="w-full bg-white/95 hover:bg-white border-4 border-[#60a5fa] rounded-full px-6 py-3.5 shadow-xl flex items-center justify-between group transition transform hover:-translate-y-0.5"
           >
             <div className="flex items-center gap-4">
               <div className="w-12 h-12 rounded-2xl bg-[#e0e7ff] flex items-center justify-center text-[#1e3a8a]">
                 <Globe className="w-7 h-7" />
               </div>
               <div className="text-left">
-                <div className="text-xl font-black text-[#1e3a8a]">
+                <div className="text-lg font-black text-[#1e3a8a]">
                   Solar System
                 </div>
                 <div className="text-xs font-bold text-slate-500">
@@ -160,17 +189,31 @@ export default function MissionHubPage({
           {MISSIONS.map((mission) => {
             const isSelected = mission.id === selectedMissionId;
             const isDone = user.missionsCompleted?.includes(mission.id);
+            const isWalkthroughTarget =
+              walkthroughStep === 1 && mission.id === 'moon';
 
             return (
               <div
                 key={mission.id}
-                onClick={() => onSelectMission(mission.id)}
-                className={`cursor-pointer rounded-3xl p-5 border-4 transition transform hover:-translate-y-1 flex flex-col justify-between shadow-2xl ${
-                  isSelected
+                onClick={() => {
+                  onSelectMission(mission.id);
+                  if (isWalkthroughTarget && onWalkthroughStepComplete) {
+                    onWalkthroughStepComplete(1);
+                  }
+                }}
+                className={`relative cursor-pointer rounded-3xl p-5 border-4 transition transform hover:-translate-y-1 flex flex-col justify-between shadow-2xl ${
+                  isWalkthroughTarget
+                    ? 'bg-[#fef08a] border-[#eab308] ring-4 ring-[#facc15] shadow-[0_0_35px_rgba(250,204,21,0.95)] scale-[1.02]'
+                    : isSelected
                     ? 'bg-[#fef9c3] border-[#f59e0b] ring-4 ring-white/80'
                     : 'bg-white/95 border-[#93c5fd] hover:border-[#3b82f6]'
                 }`}
               >
+                {isWalkthroughTarget && (
+                  <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 z-20 px-3 py-1 rounded-full bg-[#1e3a8a] border-2 border-[#facc15] text-[#fef08a] font-black text-[10px] uppercase whitespace-nowrap shadow-lg animate-bounce">
+                    👆 STEP 1: CLICK HERE TO START MOON MISSION
+                  </div>
+                )}
                 <div>
                   {/* Top Badge & Planet Orb */}
                   <div className="flex items-center justify-between mb-3">
@@ -208,10 +251,10 @@ export default function MissionHubPage({
                     </div>
                   </div>
 
-                  {/* Budget Pill */}
+                  {/* Shared Budget Pill */}
                   <div className="bg-white rounded-2xl p-2.5 border-2 border-[#bfdbfe] mb-3 flex items-center justify-between">
                     <span className="text-xs font-extrabold text-slate-500">
-                      TOTAL BUDGET
+                      SHARED BUDGET
                     </span>
                     <span className="text-base font-black text-emerald-600">
                       ${mission.budget.toLocaleString()}
@@ -244,7 +287,11 @@ export default function MissionHubPage({
                   onClick={(e) => {
                     e.stopPropagation();
                     onSelectMission(mission.id);
-                    onGoToPage('rocket');
+                    if (isWalkthroughTarget && onWalkthroughStepComplete) {
+                      onWalkthroughStepComplete(1);
+                    } else {
+                      onGoToPage('rocket');
+                    }
                   }}
                   className={`mt-4 w-full py-3 rounded-full font-black text-sm shadow-md border-2 transition ${
                     isSelected
@@ -287,23 +334,20 @@ export default function MissionHubPage({
               </button>
             </div>
 
-            {/* Role Selection (For Future Team Mode) */}
+            {/* Role Selection */}
             <div className="bg-[#eff6ff] p-4 rounded-2xl border-2 border-[#bfdbfe]">
               <div className="flex items-center justify-between mb-2">
                 <span className="text-xs font-black uppercase text-[#1e40af]">
-                  Your Assigned Team Role (Saved in Database)
-                </span>
-                <span className="px-2.5 py-0.5 rounded-full bg-amber-200 text-amber-900 text-[11px] font-black">
-                  Solo Mode Active — Roles Unlock in Team Mode
+                  The 4 Team Roles (Auto-Divided in Team Rooms)
                 </span>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                 {TEAM_ROLES.map((role) => {
-                  const active = user.preferredRole === role.id;
+                  const active = user.preferredRole === role.title;
                   return (
                     <button
                       key={role.id}
-                      onClick={() => onUpdateRole(role.id)}
+                      onClick={() => onUpdateRole(role.title)}
                       className={`p-2.5 rounded-xl border-2 text-left transition ${
                         active
                           ? 'bg-[#fef9c3] border-[#f59e0b]'
@@ -314,7 +358,7 @@ export default function MissionHubPage({
                         {role.badge} {role.title}
                       </div>
                       <div className="text-[11px] text-slate-500 font-semibold mt-0.5">
-                        {role.description}
+                        {role.responsibilities}
                       </div>
                     </button>
                   );

@@ -1,11 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import SpaceportScene from './SpaceportScene.jsx';
 import {
   MISSIONS,
   ROCKET_PARTS,
   SCIENCE_EXPERIMENTS,
 } from '../data/missionCatalog.js';
-import { Home, Settings, Check, Grid, Sun } from 'lucide-react';
+import { Home, Check, Grid, Sun, Lock } from 'lucide-react';
 
 export default function RocketBuilderPage({
   evaluation,
@@ -15,8 +15,20 @@ export default function RocketBuilderPage({
   onConfirmBuild,
   onBackToHub,
   onSelectMission,
+  room,
+  myAssignedRoles = ['commander', 'propulsion', 'payload', 'lifesupport'],
+  walkthroughStep = 0,
+  onWalkthroughStepComplete,
 }) {
   const [blueprintGridMode, setBlueprintGridMode] = useState(false);
+  // Mobile-only tab state ('parts' | 'rocket' | 'stats'); Desktop shows all 3 columns simultaneously
+  const [mobileTab, setMobileTab] = useState('parts');
+
+  useEffect(() => {
+    if (walkthroughStep >= 2 && walkthroughStep <= 4) {
+      setMobileTab('parts');
+    }
+  }, [walkthroughStep]);
 
   const {
     mission,
@@ -36,19 +48,36 @@ export default function RocketBuilderPage({
 
   const budgetSpentPct = Math.min(
     100,
-    Math.round((rocketCost / mission.budget) * 100)
+    Math.round((evaluation.totalSpent / mission.budget) * 100)
   );
 
+  const canEditRole = (roleId) => {
+    if (!room || !room.strictRoleLock) return true;
+    return myAssignedRoles.includes(roleId);
+  };
+
+  const getRoleOwnerName = (roleId) => {
+    if (!room) return 'You';
+    const owner = room.players.find((p) =>
+      (p.assignedRoles || []).includes(roleId)
+    );
+    return owner ? owner.username : 'Teammate';
+  };
+
   const toggleExperiment = (expId) => {
+    if (!canEditRole('payload')) return;
     const current = build.experimentIds || [];
     const exists = current.includes(expId);
     const next = exists
       ? current.filter((id) => id !== expId)
       : [...current, expId];
-    onUpdateBuild({ experimentIds: next });
+    const expObj = SCIENCE_EXPERIMENTS.find((e) => e.id === expId);
+    onUpdateBuild(
+      { experimentIds: next },
+      `${exists ? 'Removed' : 'Installed'} ${expObj?.name || 'Experiment'}`
+    );
   };
 
-  // Tank height scale for the 2D cartoon rocket
   const tankBodyHeight =
     tank.id === 'tank_small' ? 125 : tank.id === 'tank_medium' ? 155 : 185;
 
@@ -68,13 +97,13 @@ export default function RocketBuilderPage({
       )}
 
       {/* TOP BAR (Exact match to PDF Page 1) */}
-      <div className="relative z-20 w-full max-w-[1550px] mx-auto px-5 pt-4 flex flex-wrap items-center justify-between gap-3">
+      <div className="relative z-20 w-full max-w-[1550px] mx-auto px-5 pt-3 flex flex-wrap items-center justify-between gap-3">
         {/* Left: Circular Navy Home Button & Mission Switcher */}
         <div className="flex items-center gap-3">
           <button
             onClick={onBackToHub}
             title="Back to Spaceport Hub"
-            className="w-13 h-13 p-3.5 rounded-full bg-[#1e3a8a] hover:bg-[#1d4ed8] border-4 border-[#60a5fa] shadow-lg text-white flex items-center justify-center transition transform hover:scale-105"
+            className="w-12 h-12 p-3 rounded-full bg-[#1e3a8a] hover:bg-[#1d4ed8] border-4 border-[#60a5fa] shadow-lg text-white flex items-center justify-center transition transform hover:scale-105"
           >
             <Home className="w-6 h-6" />
           </button>
@@ -84,7 +113,7 @@ export default function RocketBuilderPage({
             {MISSIONS.map((m) => (
               <button
                 key={m.id}
-                onClick={() => onSelectMission(m.id)}
+                onClick={() => canEditRole('commander') && onSelectMission(m.id)}
                 className={`px-3.5 py-1 rounded-full text-xs font-black transition ${
                   m.id === mission.id
                     ? 'bg-[#2563eb] text-white shadow'
@@ -98,17 +127,17 @@ export default function RocketBuilderPage({
         </div>
 
         {/* Center: "Rocket Builder" Pill */}
-        <div className="bg-white/95 border-4 border-[#93c5fd] rounded-full px-9 py-2.5 shadow-xl flex items-center gap-2.5">
+        <div className="bg-white/95 border-4 border-[#93c5fd] rounded-full px-8 py-2 shadow-xl flex items-center gap-2.5">
           <span className="text-[#2563eb] text-lg">🚀</span>
-          <span className="font-black text-xl text-[#1e3a8a] tracking-tight">
+          <span className="font-black text-lg text-[#1e3a8a] tracking-tight">
             Rocket Builder — {mission.name}
           </span>
         </div>
 
-        {/* Right: Remaining Budget Pill & Blueprint Toggle Button */}
+        {/* Right: Remaining Shared Budget Pill & Blueprint Toggle Button */}
         <div className="flex items-center gap-3">
-          <div className="bg-white/95 border-4 border-[#93c5fd] rounded-full px-6 py-2 shadow-xl flex items-center gap-3">
-            <div className="w-9 h-9 rounded-full bg-[#f59e0b] border-2 border-[#fde047] flex items-center justify-center text-white font-black text-lg shadow-inner">
+          <div className="bg-white/95 border-4 border-[#93c5fd] rounded-full px-5 py-1.5 shadow-xl flex items-center gap-3">
+            <div className="w-8 h-8 rounded-full bg-[#f59e0b] border-2 border-[#fde047] flex items-center justify-center text-white font-black text-base shadow-inner">
               $
             </div>
             <div>
@@ -116,7 +145,7 @@ export default function RocketBuilderPage({
                 REMAINING
               </div>
               <div
-                className={`text-lg font-black leading-tight ${
+                className={`text-base font-black leading-tight ${
                   remainingBudget < 0 ? 'text-rose-600' : 'text-[#1e3a8a]'
                 }`}
               >
@@ -128,37 +157,125 @@ export default function RocketBuilderPage({
           <button
             onClick={() => setBlueprintGridMode((b) => !b)}
             title="Toggle 2D Blueprint Grid Overlay"
-            className="w-13 h-13 p-3.5 rounded-full bg-[#1e3a8a] hover:bg-[#1d4ed8] border-4 border-[#60a5fa] shadow-lg text-white flex items-center justify-center transition transform hover:scale-105"
+            className="w-12 h-12 p-3 rounded-full bg-[#1e3a8a] hover:bg-[#1d4ed8] border-4 border-[#60a5fa] shadow-lg text-white flex items-center justify-center transition transform hover:scale-105"
           >
-            {blueprintGridMode ? <Sun className="w-6 h-6 text-amber-300" /> : <Grid className="w-6 h-6" />}
+            {blueprintGridMode ? <Sun className="w-5 h-5 text-amber-300" /> : <Grid className="w-5 h-5" />}
           </button>
         </div>
       </div>
 
-      {/* MAIN 3-COLUMN BUILDER WORKSPACE (Matches PDF Layout) */}
-      <div className="relative z-20 flex-1 max-w-[1550px] w-full mx-auto px-5 py-4 grid grid-cols-1 lg:grid-cols-12 gap-5 items-stretch">
+      {/* MOBILE-ONLY SEGMENTED TAB SWITCHER & LIVE QUICK-CONFIRM BAR (<1024px) */}
+      <div className="lg:hidden relative z-20 w-full max-w-[1550px] mx-auto px-4 pt-2 space-y-2">
+        <div className="grid grid-cols-3 gap-1.5 bg-white/95 p-1.5 rounded-2xl border-2 border-[#60a5fa] shadow-lg">
+          <button
+            type="button"
+            onClick={() => setMobileTab('parts')}
+            className={`py-2 rounded-xl font-black text-xs transition ${
+              mobileTab === 'parts'
+                ? 'bg-[#2563eb] text-white shadow'
+                : 'text-[#1e3a8a]'
+            }`}
+          >
+            🛠️ 1. Parts
+          </button>
+          <button
+            type="button"
+            onClick={() => setMobileTab('rocket')}
+            className={`py-2 rounded-xl font-black text-xs transition ${
+              mobileTab === 'rocket'
+                ? 'bg-[#2563eb] text-white shadow'
+                : 'text-[#1e3a8a]'
+            }`}
+          >
+            🚀 2. 2D Rocket
+          </button>
+          <button
+            type="button"
+            onClick={() => setMobileTab('stats')}
+            className={`py-2 rounded-xl font-black text-xs transition ${
+              mobileTab === 'stats'
+                ? 'bg-[#2563eb] text-white shadow'
+                : 'text-[#1e3a8a]'
+            }`}
+          >
+            📊 3. Stats
+          </button>
+        </div>
+
+        {/* Compact Mobile Live Stats + One-Tap Confirm Button */}
+        <div className="bg-[#1e3a8a]/95 text-white border-2 border-[#60a5fa] rounded-2xl px-3 py-2 flex items-center justify-between gap-2 text-[11px] font-bold shadow">
+          <div className="flex items-center gap-2.5 flex-wrap">
+            <span>⚡ {thrustKn}kN</span>
+            <span>⚖️ {totalWeightTons}t</span>
+            <span>🎯 {stabilityPct}%</span>
+          </div>
+          <button
+            type="button"
+            onClick={() => {
+              if (walkthroughStep === 4 && onWalkthroughStepComplete) {
+                onWalkthroughStepComplete(4);
+              } else {
+                onConfirmBuild();
+              }
+            }}
+            className="px-3.5 py-1.5 rounded-full bg-[#f59e0b] text-[#1e3a8a] font-black text-xs border border-white shrink-0 shadow"
+          >
+            Confirm → Food
+          </button>
+        </div>
+      </div>
+
+      {/* MAIN 3-COLUMN BUILDER WORKSPACE (Matches PDF Layout on Desktop, Tabbed on Phone) */}
+      <div className="relative z-20 flex-1 max-w-[1550px] w-full mx-auto px-4 sm:px-5 py-3 grid grid-cols-1 lg:grid-cols-12 gap-5 items-stretch lg:items-center">
         {/* ====================================================
             LEFT PANEL: PART & SCIENCE EXPERIMENT SELECTOR CARD
            ==================================================== */}
-        <div className="lg:col-span-4 bg-white/95 backdrop-blur-md border-4 border-[#93c5fd] rounded-3xl p-5 shadow-2xl flex flex-col justify-between max-h-[80vh] overflow-y-auto space-y-4">
-          {/* 1. NOSE CONE */}
-          <div>
-            <h3 className="text-xs font-black uppercase tracking-wider text-[#1e3a8a] mb-2">
-              NOSE CONE
-            </h3>
+        <div
+          className={`${
+            mobileTab === 'parts' ? 'flex' : 'hidden lg:flex'
+          } lg:col-span-4 lg:mt-14 bg-white/95 backdrop-blur-md border-4 border-[#93c5fd] rounded-3xl p-4 sm:p-5 shadow-2xl flex-col justify-between lg:max-h-[68vh] overflow-y-auto space-y-4`}
+        >
+          {/* 1. NOSE CONE (Payload & Aero Role) */}
+          <div className={!canEditRole('payload') ? 'opacity-60' : ''}>
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="text-xs font-black uppercase tracking-wider text-[#1e3a8a]">
+                NOSE CONE
+              </h3>
+              <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800">
+                🔬 Aero Role ({getRoleOwnerName('payload')})
+              </span>
+            </div>
             <div className="grid grid-cols-3 gap-2.5">
               {ROCKET_PARTS.nose.map((item) => {
                 const selected = build.noseId === item.id;
+                const isHighlight =
+                  walkthroughStep === 3 && item.id === 'nose_aero';
                 return (
                   <div
                     key={item.id}
-                    onClick={() => onUpdateBuild({ noseId: item.id })}
+                    onClick={() => {
+                      if (!canEditRole('payload')) return;
+                      onUpdateBuild(
+                        { noseId: item.id },
+                        `Selected Nose: ${item.name} ($${item.cost.toLocaleString()})`
+                      );
+                      if (isHighlight && onWalkthroughStepComplete) {
+                        onWalkthroughStepComplete(3);
+                      }
+                    }}
                     className={`relative cursor-pointer rounded-2xl p-2.5 border-2 text-center transition flex flex-col items-center justify-between ${
-                      selected
+                      isHighlight
+                        ? 'bg-[#fef08a] border-[#eab308] ring-4 ring-[#facc15] shadow-[0_0_25px_rgba(250,204,21,0.9)]'
+                        : selected
                         ? 'bg-[#fef9c3] border-[#f59e0b] shadow-md'
                         : 'bg-[#f8fafc] border-[#e2e8f0] hover:border-[#93c5fd]'
                     }`}
                   >
+                    {isHighlight && (
+                      <span className="absolute -top-2.5 left-1/2 -translate-x-1/2 z-10 px-2 py-0.2 rounded-full bg-[#1e3a8a] text-[#fef08a] font-black text-[8px] uppercase whitespace-nowrap shadow">
+                        👆 STEP 3
+                      </span>
+                    )}
                     {selected && (
                       <span className="absolute -top-2 -right-2 w-5 h-5 rounded-full bg-emerald-600 text-white flex items-center justify-center shadow">
                         <Check className="w-3.5 h-3.5 stroke-[3]" />
@@ -185,24 +302,47 @@ export default function RocketBuilderPage({
             </div>
           </div>
 
-          {/* 2. FUEL TANK */}
-          <div>
-            <h3 className="text-xs font-black uppercase tracking-wider text-[#1e3a8a] mb-2">
-              FUEL TANK (WEIGHT & CAPACITY)
-            </h3>
+          {/* 2. FUEL TANK (Propulsion Role) */}
+          <div className={!canEditRole('propulsion') ? 'opacity-60' : ''}>
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="text-xs font-black uppercase tracking-wider text-[#1e3a8a]">
+                FUEL TANK
+              </h3>
+              <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-amber-100 text-amber-900">
+                🚀 Propulsion Role ({getRoleOwnerName('propulsion')})
+              </span>
+            </div>
             <div className="grid grid-cols-3 gap-2.5">
               {ROCKET_PARTS.tank.map((item) => {
                 const selected = build.tankId === item.id;
+                const isHighlight =
+                  walkthroughStep === 2 && item.id === 'tank_medium';
                 return (
                   <div
                     key={item.id}
-                    onClick={() => onUpdateBuild({ tankId: item.id })}
+                    onClick={() => {
+                      if (!canEditRole('propulsion')) return;
+                      onUpdateBuild(
+                        { tankId: item.id },
+                        `Selected Fuel Tank: ${item.name} ($${item.cost.toLocaleString()})`
+                      );
+                      if (isHighlight && onWalkthroughStepComplete) {
+                        onWalkthroughStepComplete(2);
+                      }
+                    }}
                     className={`relative cursor-pointer rounded-2xl p-2.5 border-2 text-center transition flex flex-col items-center justify-between ${
-                      selected
+                      isHighlight
+                        ? 'bg-[#fef08a] border-[#eab308] ring-4 ring-[#facc15] shadow-[0_0_25px_rgba(250,204,21,0.9)]'
+                        : selected
                         ? 'bg-[#fef9c3] border-[#f59e0b] shadow-md'
                         : 'bg-[#f8fafc] border-[#e2e8f0] hover:border-[#93c5fd]'
                     }`}
                   >
+                    {isHighlight && (
+                      <span className="absolute -top-2.5 left-1/2 -translate-x-1/2 z-10 px-2 py-0.2 rounded-full bg-[#1e3a8a] text-[#fef08a] font-black text-[8px] uppercase whitespace-nowrap shadow animate-bounce">
+                        👆 STEP 2: CLICK
+                      </span>
+                    )}
                     {selected && (
                       <span className="absolute -top-2 -right-2 w-5 h-5 rounded-full bg-emerald-600 text-white flex items-center justify-center shadow">
                         <Check className="w-3.5 h-3.5 stroke-[3]" />
@@ -241,11 +381,11 @@ export default function RocketBuilderPage({
             </div>
           </div>
 
-          {/* 3. TANK THERMAL COATING (Moon Warm vs Neptune Deep Freeze Challenge!) */}
-          <div>
+          {/* 3. TANK THERMAL COATING (Propulsion Role) */}
+          <div className={!canEditRole('propulsion') ? 'opacity-60' : ''}>
             <div className="flex items-center justify-between mb-2">
               <h3 className="text-xs font-black uppercase tracking-wider text-[#1e3a8a]">
-                TANK THERMAL COATING (TEMP CHALLENGE)
+                TANK THERMAL COATING
               </h3>
               <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-blue-100 text-blue-800">
                 Target: {mission.avgTemp}
@@ -254,16 +394,34 @@ export default function RocketBuilderPage({
             <div className="grid grid-cols-3 gap-2.5">
               {ROCKET_PARTS.coating.map((item) => {
                 const selected = build.coatingId === item.id;
+                const isHighlight =
+                  walkthroughStep === 2 && item.id === 'coat_light';
                 return (
                   <div
                     key={item.id}
-                    onClick={() => onUpdateBuild({ coatingId: item.id })}
+                    onClick={() => {
+                      if (!canEditRole('propulsion')) return;
+                      onUpdateBuild(
+                        { coatingId: item.id },
+                        `Selected Coating: ${item.name} ($${item.cost.toLocaleString()})`
+                      );
+                      if (isHighlight && onWalkthroughStepComplete) {
+                        onWalkthroughStepComplete(2);
+                      }
+                    }}
                     className={`relative cursor-pointer rounded-2xl p-2.5 border-2 text-center transition flex flex-col items-center justify-between ${
-                      selected
+                      isHighlight
+                        ? 'bg-[#fef08a] border-[#eab308] ring-4 ring-[#facc15] shadow-[0_0_25px_rgba(250,204,21,0.9)]'
+                        : selected
                         ? 'bg-[#fef9c3] border-[#f59e0b] shadow-md'
                         : 'bg-[#f8fafc] border-[#e2e8f0] hover:border-[#93c5fd]'
                     }`}
                   >
+                    {isHighlight && (
+                      <span className="absolute -top-2.5 left-1/2 -translate-x-1/2 z-10 px-2 py-0.2 rounded-full bg-[#1e3a8a] text-[#fef08a] font-black text-[8px] uppercase whitespace-nowrap shadow">
+                        👆 STEP 2: COAT
+                      </span>
+                    )}
                     {selected && (
                       <span className="absolute -top-2 -right-2 w-5 h-5 rounded-full bg-emerald-600 text-white flex items-center justify-center shadow">
                         <Check className="w-3.5 h-3.5 stroke-[3]" />
@@ -290,24 +448,47 @@ export default function RocketBuilderPage({
             </div>
           </div>
 
-          {/* 4. FINS */}
-          <div>
-            <h3 className="text-xs font-black uppercase tracking-wider text-[#1e3a8a] mb-2">
-              FINS
-            </h3>
+          {/* 4. FINS (Payload & Aero Role) */}
+          <div className={!canEditRole('payload') ? 'opacity-60' : ''}>
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="text-xs font-black uppercase tracking-wider text-[#1e3a8a]">
+                FINS
+              </h3>
+              <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800">
+                🔬 Aero Role ({getRoleOwnerName('payload')})
+              </span>
+            </div>
             <div className="grid grid-cols-3 gap-2.5">
               {ROCKET_PARTS.fins.map((item) => {
                 const selected = build.finsId === item.id;
+                const isHighlight =
+                  walkthroughStep === 3 && item.id === 'fins_stabilizer';
                 return (
                   <div
                     key={item.id}
-                    onClick={() => onUpdateBuild({ finsId: item.id })}
+                    onClick={() => {
+                      if (!canEditRole('payload')) return;
+                      onUpdateBuild(
+                        { finsId: item.id },
+                        `Selected Fins: ${item.name} ($${item.cost.toLocaleString()})`
+                      );
+                      if (isHighlight && onWalkthroughStepComplete) {
+                        onWalkthroughStepComplete(3);
+                      }
+                    }}
                     className={`relative cursor-pointer rounded-2xl p-2.5 border-2 text-center transition flex flex-col items-center justify-between ${
-                      selected
+                      isHighlight
+                        ? 'bg-[#fef08a] border-[#eab308] ring-4 ring-[#facc15] shadow-[0_0_25px_rgba(250,204,21,0.9)]'
+                        : selected
                         ? 'bg-[#fef9c3] border-[#f59e0b] shadow-md'
                         : 'bg-[#f8fafc] border-[#e2e8f0] hover:border-[#93c5fd]'
                     }`}
                   >
+                    {isHighlight && (
+                      <span className="absolute -top-2.5 left-1/2 -translate-x-1/2 z-10 px-2 py-0.2 rounded-full bg-[#1e3a8a] text-[#fef08a] font-black text-[8px] uppercase whitespace-nowrap shadow">
+                        👆 STEP 3
+                      </span>
+                    )}
                     {selected && (
                       <span className="absolute -top-2 -right-2 w-5 h-5 rounded-full bg-emerald-600 text-white flex items-center justify-center shadow">
                         <Check className="w-3.5 h-3.5 stroke-[3]" />
@@ -332,24 +513,47 @@ export default function RocketBuilderPage({
             </div>
           </div>
 
-          {/* 5. ENGINE */}
-          <div>
-            <h3 className="text-xs font-black uppercase tracking-wider text-[#1e3a8a] mb-2">
-              ENGINE (THRUST)
-            </h3>
+          {/* 5. ENGINE (Propulsion Role) */}
+          <div className={!canEditRole('propulsion') ? 'opacity-60' : ''}>
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="text-xs font-black uppercase tracking-wider text-[#1e3a8a]">
+                ENGINE (THRUST)
+              </h3>
+              <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-amber-100 text-amber-900">
+                🚀 Propulsion Role ({getRoleOwnerName('propulsion')})
+              </span>
+            </div>
             <div className="grid grid-cols-3 gap-2.5">
               {ROCKET_PARTS.engine.map((item) => {
                 const selected = build.engineId === item.id;
+                const isHighlight =
+                  walkthroughStep === 3 && item.id === 'eng_thruster_x';
                 return (
                   <div
                     key={item.id}
-                    onClick={() => onUpdateBuild({ engineId: item.id })}
+                    onClick={() => {
+                      if (!canEditRole('propulsion')) return;
+                      onUpdateBuild(
+                        { engineId: item.id },
+                        `Selected Engine: ${item.name} ($${item.cost.toLocaleString()})`
+                      );
+                      if (isHighlight && onWalkthroughStepComplete) {
+                        onWalkthroughStepComplete(3);
+                      }
+                    }}
                     className={`relative cursor-pointer rounded-2xl p-2.5 border-2 text-center transition flex flex-col items-center justify-between ${
-                      selected
+                      isHighlight
+                        ? 'bg-[#fef08a] border-[#eab308] ring-4 ring-[#facc15] shadow-[0_0_25px_rgba(250,204,21,0.9)]'
+                        : selected
                         ? 'bg-[#fef9c3] border-[#f59e0b] shadow-md'
                         : 'bg-[#f8fafc] border-[#e2e8f0] hover:border-[#93c5fd]'
                     }`}
                   >
+                    {isHighlight && (
+                      <span className="absolute -top-2.5 left-1/2 -translate-x-1/2 z-10 px-2 py-0.2 rounded-full bg-[#1e3a8a] text-[#fef08a] font-black text-[8px] uppercase whitespace-nowrap shadow animate-bounce">
+                        👆 STEP 3: ENGINE
+                      </span>
+                    )}
                     {selected && (
                       <span className="absolute -top-2 -right-2 w-5 h-5 rounded-full bg-emerald-600 text-white flex items-center justify-center shadow">
                         <Check className="w-3.5 h-3.5 stroke-[3]" />
@@ -373,27 +577,45 @@ export default function RocketBuilderPage({
             </div>
           </div>
 
-          {/* 6. SCIENCE EXPERIMENTS (Required + Bonus Score!) */}
-          <div>
-            <h3 className="text-xs font-black uppercase tracking-wider text-[#1e3a8a] mb-2">
-              SCIENCE EXPERIMENTS (MULTI-SELECT FOR SCORE)
-            </h3>
+          {/* 6. SCIENCE EXPERIMENTS (Payload & Aero Role) */}
+          <div className={!canEditRole('payload') ? 'opacity-60' : ''}>
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="text-xs font-black uppercase tracking-wider text-[#1e3a8a]">
+                SCIENCE EXPERIMENTS
+              </h3>
+              <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800">
+                🔬 Science Role ({getRoleOwnerName('payload')})
+              </span>
+            </div>
             <div className="grid grid-cols-2 gap-2">
               {SCIENCE_EXPERIMENTS.map((exp) => {
                 const selected = (build.experimentIds || []).includes(exp.id);
                 const isMandatory = exp.requiredFor === mission.id;
+                const isHighlight = walkthroughStep === 4 && isMandatory;
                 return (
                   <div
                     key={exp.id}
-                    onClick={() => toggleExperiment(exp.id)}
+                    onClick={() => {
+                      toggleExperiment(exp.id);
+                      if (isHighlight && onWalkthroughStepComplete) {
+                        onWalkthroughStepComplete(4);
+                      }
+                    }}
                     className={`relative cursor-pointer rounded-2xl p-2.5 border-2 text-left transition ${
-                      selected
+                      isHighlight
+                        ? 'bg-[#fef08a] border-[#eab308] ring-4 ring-[#facc15] shadow-[0_0_25px_rgba(250,204,21,0.95)]'
+                        : selected
                         ? 'bg-[#fef9c3] border-[#f59e0b] shadow-md'
                         : isMandatory
                         ? 'bg-rose-50/90 border-rose-400'
                         : 'bg-[#f8fafc] border-[#e2e8f0] hover:border-[#93c5fd]'
                     }`}
                   >
+                    {isHighlight && (
+                      <span className="absolute -top-2.5 left-1/2 -translate-x-1/2 z-10 px-2 py-0.5 rounded-full bg-[#1e3a8a] text-[#fef08a] font-black text-[8px] uppercase whitespace-nowrap shadow animate-bounce">
+                        👆 STEP 4: CLICK REQUIRED SCIENCE
+                      </span>
+                    )}
                     {selected && (
                       <span className="absolute -top-2 -right-2 w-5 h-5 rounded-full bg-emerald-600 text-white flex items-center justify-center shadow">
                         <Check className="w-3.5 h-3.5 stroke-[3]" />
@@ -427,22 +649,25 @@ export default function RocketBuilderPage({
         {/* ====================================================
             CENTER PANEL: 2D CARTOON ROCKET & CALLOUT PILLS
            ==================================================== */}
-        <div className="lg:col-span-4 relative flex items-center justify-center min-h-[460px]">
+        <div
+          className={`${
+            mobileTab === 'rocket' ? 'flex' : 'hidden lg:flex'
+          } lg:col-span-4 relative items-center justify-center min-h-[380px] sm:min-h-[450px]`}
+        >
           <svg
             viewBox="0 0 500 560"
             className="w-full max-w-[470px] h-auto drop-shadow-2xl overflow-visible"
           >
-            {/* Center Rocket Group positioned on Launchpad */}
             <g transform="translate(250, 440)">
               {/* Left & Right Fins */}
               <polygon
-                points={`-42,-65 -98,10 -42,-12`}
+                points="-42,-65 -98,10 -42,-12"
                 fill={fins.color}
                 stroke="#1e3a8a"
                 strokeWidth="3"
               />
               <polygon
-                points={`42,-65 98,10 42,-12`}
+                points="42,-65 98,10 42,-12"
                 fill={fins.color}
                 stroke="#1e3a8a"
                 strokeWidth="3"
@@ -469,7 +694,7 @@ export default function RocketBuilderPage({
                 strokeWidth={coating.coatingLevel === 3 ? '9' : coating.coatingLevel === 2 ? '6' : '3'}
               />
 
-              {/* Blue Accent Stripes on Rocket Body (Matching PDF!) */}
+              {/* Blue Accent Stripes on Rocket Body */}
               <rect
                 x="-44"
                 y={-18 - tankBodyHeight + 18}
@@ -485,7 +710,7 @@ export default function RocketBuilderPage({
                 fill={tank.color}
               />
 
-              {/* Circular Blue Porthole Window in Center of Rocket */}
+              {/* Circular Blue Porthole Window */}
               <circle
                 cx="0"
                 cy={-18 - tankBodyHeight / 2}
@@ -511,7 +736,7 @@ export default function RocketBuilderPage({
                 fill={nose.color}
               />
 
-              {/* Callout 1: NOSE CONE (Top Left Pill) */}
+              {/* Callout 1: NOSE CONE */}
               <g transform={`translate(0, ${-18 - tankBodyHeight - 60})`}>
                 <line
                   x1="-18"
@@ -556,7 +781,7 @@ export default function RocketBuilderPage({
                 </g>
               </g>
 
-              {/* Callout 2: FUEL TANK & COATING (Middle Left Pill) */}
+              {/* Callout 2: FUEL TANK & COATING */}
               <g transform={`translate(0, ${-18 - tankBodyHeight * 0.65})`}>
                 <line
                   x1="-32"
@@ -601,7 +826,7 @@ export default function RocketBuilderPage({
                 </g>
               </g>
 
-              {/* Callout 3: FINS (Lower Right Pill) */}
+              {/* Callout 3: FINS */}
               <g transform="translate(0, -35)">
                 <line
                   x1="68"
@@ -646,7 +871,7 @@ export default function RocketBuilderPage({
                 </g>
               </g>
 
-              {/* Callout 4: ENGINE (Bottom Right Pill) */}
+              {/* Callout 4: ENGINE */}
               <g transform="translate(0, 22)">
                 <line
                   x1="34"
@@ -695,14 +920,18 @@ export default function RocketBuilderPage({
         </div>
 
         {/* ====================================================
-            RIGHT PANEL: BUDGET, YOUR BUILD, & ROCKET STATS CARD
+            RIGHT PANEL: SHARED BUDGET, YOUR BUILD, & ROCKET STATS
            ==================================================== */}
-        <div className="lg:col-span-4 bg-white/95 backdrop-blur-md border-4 border-[#93c5fd] rounded-3xl p-6 shadow-2xl flex flex-col justify-between text-[#1e3a8a]">
+        <div
+          className={`${
+            mobileTab === 'stats' ? 'flex' : 'hidden lg:flex'
+          } lg:col-span-4 bg-white/95 backdrop-blur-md border-4 border-[#93c5fd] rounded-3xl p-5 sm:p-6 shadow-2xl flex-col justify-between text-[#1e3a8a]`}
+        >
           <div className="space-y-4">
-            {/* TOTAL BUDGET */}
+            {/* TOTAL SHARED BUDGET */}
             <div>
               <div className="text-xs font-black uppercase tracking-wider text-[#1e3a8a]">
-                TOTAL BUDGET ({mission.name.toUpperCase()})
+                SHARED TEAM BUDGET ({mission.name.toUpperCase()})
               </div>
               <div className="text-4xl font-black text-[#1e3a8a] mt-0.5">
                 ${mission.budget.toLocaleString()}
@@ -719,7 +948,7 @@ export default function RocketBuilderPage({
 
               <div className="flex items-center justify-between text-xs font-extrabold mt-1.5">
                 <span className="text-[#1e3a8a]">
-                  Spent ${rocketCost.toLocaleString()}
+                  Total Spent ${evaluation.totalSpent.toLocaleString()}
                 </span>
                 <span
                   className={
@@ -729,6 +958,32 @@ export default function RocketBuilderPage({
                   Left ${remainingBudget.toLocaleString()}
                 </span>
               </div>
+
+              {/* Integrated Mission Prep Progress Bar inside Right Panel */}
+              <div className="mt-3 p-2.5 rounded-2xl bg-[#eff6ff] border-2 border-[#bfdbfe]">
+                <div className="flex items-center justify-between text-[11px] font-black mb-1">
+                  <span className="text-[#1e3a8a]">
+                    MISSION PREP PROGRESS
+                  </span>
+                  <span
+                    className={
+                      evaluation.isPrepFull
+                        ? 'text-emerald-600'
+                        : 'text-amber-600'
+                    }
+                  >
+                    {evaluation.prepProgressPct}% {evaluation.isPrepFull ? 'READY!' : 'IN PREP'}
+                  </span>
+                </div>
+                <div className="w-full h-2.5 bg-white rounded-full overflow-hidden border border-blue-200">
+                  <div
+                    className={`h-full transition-all duration-500 ${
+                      evaluation.isPrepFull ? 'bg-emerald-500' : 'bg-[#f59e0b]'
+                    }`}
+                    style={{ width: `${evaluation.prepProgressPct}%` }}
+                  />
+                </div>
+              </div>
             </div>
 
             <hr className="border-slate-200" />
@@ -736,9 +991,9 @@ export default function RocketBuilderPage({
             {/* YOUR BUILD RECEIPT */}
             <div>
               <div className="text-xs font-black uppercase tracking-wider text-[#1e3a8a] mb-2">
-                YOUR BUILD
+                YOUR TEAM BUILD
               </div>
-              <div className="space-y-2 text-sm">
+              <div className="space-y-1.5 text-sm">
                 <div className="flex items-center justify-between border-b border-slate-100 pb-1">
                   <span className="text-slate-500 font-semibold">Nose</span>
                   <span className="font-bold text-[#1e3a8a]">{nose.name}</span>
@@ -775,9 +1030,20 @@ export default function RocketBuilderPage({
                     ${evaluation.experimentsCost.toLocaleString()}
                   </span>
                 </div>
+                <div className="flex items-center justify-between border-b border-slate-100 pb-1">
+                  <span className="text-slate-500 font-semibold">
+                    Astro Food ({evaluation.totalFoodDays}d)
+                  </span>
+                  <span className="font-bold text-purple-600">
+                    {evaluation.foodWeightKg} kg
+                  </span>
+                  <span className="font-black">
+                    ${evaluation.totalFoodCost.toLocaleString()}
+                  </span>
+                </div>
 
                 <div className="flex items-center justify-between pt-1 text-base font-black text-[#1e3a8a]">
-                  <span>Total</span>
+                  <span>Rocket Subtotal</span>
                   <span>${rocketCost.toLocaleString()}</span>
                 </div>
               </div>
@@ -785,7 +1051,7 @@ export default function RocketBuilderPage({
 
             <hr className="border-slate-200" />
 
-            {/* ROCKET STATS (Exact Match to PDF: Thrust, Weight, Stability) */}
+            {/* ROCKET STATS */}
             <div className="space-y-2.5">
               <div className="text-xs font-black uppercase tracking-wider text-[#1e3a8a]">
                 ROCKET STATS
@@ -844,7 +1110,7 @@ export default function RocketBuilderPage({
             </div>
           </div>
 
-          {/* Bottom Reset & Confirm Build Buttons (Exact Match to PDF) */}
+          {/* Bottom Reset & Confirm Build Buttons */}
           <div className="pt-4 mt-4 border-t border-slate-100 flex items-center gap-3">
             <button
               onClick={onResetBuild}
@@ -853,8 +1119,18 @@ export default function RocketBuilderPage({
               Reset
             </button>
             <button
-              onClick={onConfirmBuild}
-              className="w-2/3 py-3.5 rounded-full bg-[#f59e0b] hover:bg-[#eab308] text-[#1e3a8a] font-black text-base border-2 border-[#d97706] shadow-lg transition transform active:scale-95"
+              onClick={() => {
+                if (walkthroughStep === 4 && onWalkthroughStepComplete) {
+                  onWalkthroughStepComplete(4);
+                } else {
+                  onConfirmBuild();
+                }
+              }}
+              className={`w-2/3 py-3.5 rounded-full bg-[#f59e0b] hover:bg-[#eab308] text-[#1e3a8a] font-black text-base border-2 border-[#d97706] shadow-lg transition transform active:scale-95 ${
+                walkthroughStep === 4
+                  ? 'ring-4 ring-[#facc15] shadow-[0_0_25px_rgba(250,204,21,0.9)]'
+                  : ''
+              }`}
             >
               Confirm Build → Food
             </button>

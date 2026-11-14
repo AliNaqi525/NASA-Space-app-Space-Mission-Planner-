@@ -7,7 +7,7 @@ export default function SpaceportScene({
   children,
 }) {
   return (
-    <div className="relative min-h-screen w-full overflow-hidden select-none flex flex-col justify-between bg-gradient-to-b from-[#256eff] via-[#5ca7ff] to-[#9cd0ff]">
+    <div className="relative flex-1 min-h-[calc(100vh-42px)] w-full overflow-hidden select-none flex flex-col justify-between bg-gradient-to-b from-[#256eff] via-[#5ca7ff] to-[#9cd0ff]">
       {/* Cartoon Sun & Diagonal Sky Streaks */}
       <div className="pointer-events-none absolute inset-0 overflow-hidden">
         <div className="absolute -top-10 left-1/4 w-96 h-12 bg-white/15 -rotate-12 rounded-full blur-sm" />
