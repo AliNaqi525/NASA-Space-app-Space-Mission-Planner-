@@ -1,0 +1,83 @@
+{
+  "users": [
+    {
+      "id": "usr-demo-1",
+      "username": "CaptainNova",
+      "email": "nova@spaceport.org",
+      "password": "password123",
+      "preferredRole": "Mission Commander",
+      "totalScore": 3047,
+      "missionsCompleted": [
+        "moon"
+      ],
+      "missionHistory": [
+        {
+          "id": "hist-1794679694503",
+          "missionId": "moon",
+          "missionName": "Moon Expedition",
+          "success": true,
+          "score": 1597,
+          "budgetSpent": 895200,
+          "failureReason": null,
+          "timestamp": "2026-11-14T18:08:14.503Z"
+        },
+        {
+          "id": "hist-1794679658336",
+          "missionId": "moon",
+          "missionName": "Moon Expedition",
+          "success": false,
+          "score": 0,
+          "budgetSpent": 915200,
+          "failureReason": "Science Failure: Missing Mandatory Mission Experiment!",
+          "timestamp": "2026-11-14T18:07:38.336Z"
+        },
+        {
+          "id": "hist-1794676717165",
+          "missionId": "mars",
+          "missionName": "Mars Red Planet",
+          "success": false,
+          "score": 0,
+          "budgetSpent": 2142200,
+          "failureReason": "Science Failure: Missing Mandatory Mission Experiment!",
+          "timestamp": "2026-11-14T17:18:37.165Z"
+        },
+        {
+          "id": "hist-1",
+          "missionId": "moon",
+          "missionName": "Moon Expedition",
+          "success": true,
+          "score": 1450,
+          "budgetSpent": 785000,
+          "timestamp": "2026-11-14T15:30:00.000Z"
+        }
+      ],
+      "createdAt": "2026-11-14T15:00:00.000Z",
+      "lastLoginAt": "2026-11-14T17:19:18.793Z"
+    },
+    {
+      "id": "usr-1794679371379-aqfd",
+      "username": "ali naqi",
+      "email": "syedalinaqishah525@gmail.com",
+      "password": "q1w2e3r4",
+      "preferredRole": "Propulsion Engineer",
+      "totalScore": 785,
+      "missionsCompleted": [
+        "moon"
+      ],
+      "missionHistory": [
+        {
+          "id": "hist-1794679438522",
+          "missionId": "moon",
+          "missionName": "Moon Expedition",
+          "success": true,
+          "score": 785,
+          "budgetSpent": 503600,
+          "failureReason": null,
+          "timestamp": "2026-11-14T18:03:58.522Z"
+        }
+      ],
+      "createdAt": "2026-11-14T18:02:51.379Z",
+      "lastLoginAt": "2026-11-14T18:04:15.633Z"
+    }
+  ]
+}
